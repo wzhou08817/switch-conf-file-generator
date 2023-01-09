@@ -1,0 +1,14 @@
+---
+all:
+  children:
+    whale:
+      hosts: 68.83.136.10
+      vars:
+        ansible_user: wzhou
+        ansible_ssh_private_key_file: ~/shared_dir/Keys/cpe-key.pem
+        ansible_sudo_pass: passme
+    localhost:
+      hosts: 127.0.0.1
+      vars:
+        ansible_user: wzhou
+        ansible_connection: local

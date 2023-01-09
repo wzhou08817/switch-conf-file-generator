@@ -1,0 +1,1265 @@
+replace: groups {
+    PIM-OPTIONS {
+        protocols {
+            pim {
+                interface <*> {
+                    family inet;
+                    family inet6;
+                    mode sparse;
+                    hello-interval 3;
+                }
+            }
+        }
+    }
+    L2-ISIS-OPTIONS {
+        protocols {
+            isis {
+                interface <*> {
+                    csnp-interval 10;
+                    point-to-point;
+                    family inet {
+                        bfd-liveness-detection {
+                            minimum-interval 1000;
+                            multiplier 3;
+                        }
+                    }
+                    level 1 disable;
+                }
+            }
+        }
+    }
+    L3-9K-MTU {
+        interfaces {
+            <*> {
+                mtu 9216;
+            }
+        }
+    }
+    RADIUS-OPTIONS {
+        system {
+            radius-server {
+                <*> {
+                    port 1645;
+                    accounting-port 1646;
+                    secret "$9$obGHmQz6CtODi1Rcr8LUjiqmT"; ## SECRET-DATA
+                    timeout 5;
+                    retry 1;
+                    source-address {{ switch.loopback.v4.ip }};
+                }
+            }
+        }
+    }
+    TACPLUS-OPTIONS {
+        system {
+            accounting {
+                events [ login change-log interactive-commands ];
+                destination {
+                    tacplus {
+                        server {
+                            <*> {
+                                apply-groups TACPLUS-OPTIONS;
+                                secret "$9$gWJjq5T3/CuGDO1ESMWZUDHqf"; ## SECRET-DATA
+                                timeout 5;
+                                single-connection;
+                                source-address {{ switch.loopback.v4.ip }};
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+replace: system {
+    login {
+        class UNDERSCORE_R {
+            idle-timeout 15;
+            permissions [ configure firewall interface-control network routing trace view view-configuration ];
+            allow-commands "clear interfaces statistics";
+            allow-configuration "(system static-host-mapping)|(system ntp)|(protocols ospf area 0.0.0.0 interface .*)|(routing-instances .*)|(protocols isis interface .*)|(protocols pim interface .*)|(protocols igmp interface .*)|(routing-options static .*)|(vlans .*)|(bridge-domains .*)|(firewall family inet .*)";
+            deny-configuration "(system root-authentication)|(.* traceoptions)";
+        }
+        class UNDERSCORE_U {
+            idle-timeout 15;
+            permissions [ configure firewall interface-control network routing trace view view-configuration ];
+            allow-configuration "(routing-instances .*)|(groups .* routing-instances .*)|(system static-host-mapping)|(system ntp)|(protocols isis interface .*)|(protocols pim interface .*)|(protocols igmp interface .*)|(vlans .*)|(firewall policer .*)|(firewall family ethernet-switching .*)";
+            deny-configuration "(system root-authentication)|(.* traceoptions)";
+        }
+        class multicast {
+            permissions [ configure routing-control ];
+            allow-configuration "protocols mld interface .*";
+            deny-configuration "(protocols bgp *)|(protocols isis *)|(protocols ptp *)|(protocols router-advertisement *)|(routing-options *)|(groups *)|(policy-options *)|(multicast-snooping-options *)|(switch-options *)|(vlans *)";
+            cli {
+                prompt multicast;
+            }
+        }
+        class read-only-local {
+            permissions view-configuration;
+            allow-commands show;
+            deny-commands "(clear)|(file)|(file show)|(help)|(load)|(monitor)|(op)|(request)|(save)|(set)|(start)|(test)";
+            allow-configuration show;
+            deny-configuration all;
+        }
+        class readonly-local {
+            idle-timeout 15;
+            permissions all;
+            allow-commands "^set cli|^request message|^request routing-engine|^request support";
+            deny-commands "^set|^configure|^request|^op";
+        }
+        class superuser-local {
+            idle-timeout 15;
+            permissions all;
+            allow-commands .;
+            deny-commands "^show snmp mib";
+        }
+        user UNDERSCORE_R {
+            uid 3001;
+            class UNDERSCORE_R;
+        }
+        user UNDERSCORE_U {
+            uid 2000;
+            class UNDERSCORE_U;
+        }
+        user mfibr {
+            uid 2004;
+            class multicast;
+            authentication {
+                ssh-rsa "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDCwH0HXJ/nsoWLoPzDoU0xSXP/Gp7eTtMb+LAJQ1gDO+ELsUQ5S9h2udUkUWjowalMPBB68tPEM0q+H4SkR7WnTrqHzvAQ7hLp8n9RaiStDmgmb3o7hRg808u/9cyBje4kBJk2ii6amxq79BEugLLxrSHMtz3SAwLJ7BqiZqNjBYrwtH8LqXeZmWH2SvVcr7l2qyvAqTQ6VDj6h/cjORR5I2itxhMKCHJ08p8g/jeJmd/zmg0U+k+BCLeKTVMrJE9FHLG+j5jnlj/qKqGLpDH0kfxaWPXMHqH/ZB6V2SbMbdVhjq9sHU3dTxRn5WYvRpkm+RuIrmNR6pzS5bKFOTnL"; ## SECRET-DATA
+            }
+        }
+        user morpheus {
+            uid 2005;
+            class super-user;
+            authentication {
+                ssh-rsa "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC74CEnoiqBsZcygGNfC5wvL6LXrDx0XHmttAKm6PxSU6iJuqQ1QEseDzcoFWaOd7mO/zD305ruW/iki4QE7JxRVjR2F0nAlIptXndIC3ELuGL9LNQfWc95bpXIQQVPlBAJxyD1tbGnQXQeYvYvnL61FnhnnBl/R85WpIv/9yLgMuRbFKxzXIabKRToLLC4DrBR11hsvkmWmtdtAhPYg+NBfNwxwDnsEUhUrzchlKbMeIca8jEJjNouL/ZZc+kZED5A/Gq/XLOxqtyIJhGSUaGlP0MBiU6oCMIyhCpT1/MWd2PTKaxSEssTJhlrpM20B04HIerX+RLdIPss1fJoG03j"; ## SECRET-DATA
+            }
+        }
+        user readonly {
+            uid 2002;
+            class readonly-local;
+        }
+        user showlogs {
+            uid 2003;
+            class readonly-local;
+            authentication {
+                encrypted-password "$6$kpOOrc7h$9tA8XPXRUKdneDIakt8gvmpcl8WaX/Nvo6GZQyQfjrJpk8OvovzjwQ98PC5ZSjQm86SbMPSW0q1QAqc0Sf4tk1"; ## SECRET-DATA
+            }
+        }
+        user netmon {
+            uid 2001;
+            class super-user;
+            authentication {
+                ssh-rsa "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDFXrgbAS6wPJMJ/bkErYwNJaqM9haZmAnmulobzrSRXByxzA1OBxO7nwxHgAdIVLruB5Aa7rcWRP7KtUb0BZOSD6A9J1S9Z0Ve/Ni54jvrLnqtOKt7GVhiSVp4ZkaOjgTcbathFF5y+3IbTi7vx3rw+vQQ/arUeuQa4ortZCMDe2kYeyPxOEJeHO5jjZDvRBosN9S+Hvzwx6FI00SRXPqnYAMYhmT8c2ysFqKmTcYyszQnR9Y4zMaRquXv+fxNNczZXAFRv5zC+b6+jn0tsMqjaz9A5SmeRcoO1GhxG7IEgjD+nNBwQBOpPdqvdr1MpAzcZ+8Vz6G6bPaLEdzg/wZbduqEMAuLTgNHrndNL3AA7xCEhTWqLzyXhbne66Vp1WRKzWYO1dpnEAZgZRBUnC+K5ppAL6JFBowFvtsqg6eLJAsFciUDp0SGva/QgwPVpDpTnnt/uxOWhthPmsr/JWCMIbU0l/gPepvkCsvw6cycZFbnU1i8lPH4NDQgiJSQl6s="; ## SECRET-DATA
+            }
+        }
+        user superuser {
+            uid 1001;
+            class super-user;
+            authentication {
+                encrypted-password "$1$ZnxBK6eG$NlM1KPgFAzWqgPBfSWHvK1"; ## SECRET-DATA
+            }
+        }
+    }
+    root-authentication {
+        encrypted-password "$6$G4/XmSzJ$Tg7cygJ.bMa0Q/FxKm5ubk20v8Iuhi3WSH9QubJswhLkw5japhizBULbtinlRk4/7xIFsnmi7QOagVU5aP/070"; ## SECRET-DATA
+    }
+    services {
+        ssh {
+            root-login deny;
+            protocol-version v2;
+            connection-limit 16;
+            rate-limit 50;
+        }
+        netconf {
+            ssh;
+        }
+    }
+    host-name {{ switch.hostname | lower }};
+    domain-name comcast.net;
+    authentication-order [ password radius ];
+    radius-server {
+    accounting {
+        events [ login change-log interactive-commands ];
+    }
+    scripts {
+        op {
+            file mc_selector_twonsg.py;
+            file checkVideoRedundancyOps.py;
+            file startportpolling.py {
+                command startportpolling;
+            }
+            file stopportpolling.py {
+                command stopportpolling;
+            }
+        }
+        language python;
+    }
+    syslog {
+        user * {
+            any emergency;
+        }
+        file messages {
+            any notice;
+            authorization info;
+            match "!(.*IFINFO_NULL_DSL_SFP.*)";
+        }
+        file cli-commands {
+            interactive-commands any;
+            explicit-priority;
+        }
+        time-format millisecond;
+    }
+    processes {
+        general-authentication-service {
+            traceoptions {
+                file radius size 5m files 5 world-readable;
+                flag radius;
+                flag user-access;
+            }
+        }
+    }
+    ntp {
+        source-address {{ switch.loopback.v4.ip }};
+    }
+}
+chassis {
+    alarm {
+        management-ethernet {
+            link-down ignore;
+        }
+    }
+}
+replace: interfaces {
+{% for intf in range(48) %}
+    xe-0/0/{{ intf }} {
+        apply-groups [ L3-9K-MTU ];
+        description "RPD {{ intf }}";
+        unit 0 {
+          family iso;
+          family inet6 {
+              address {{ switch.interfaces[intf] }};
+          }
+        }
+    }
+{% endfor %}
+    et-0/0/50 {
+        apply-groups L3-9K-MTU;
+        unit 0 {
+            description "PHY|100g|rhost:{{ switch.rhostname_et50 }}|rport:{{ switch.rport_et50 }}";
+            family inet {
+                address {{ switch.h2d_ipv4_et50.ip }}/{{ switch.h2d_ipv4_et50.prefixlen }};
+            }
+            family iso;
+            family inet6 {
+                filter {
+                    input IPV6-IN;
+                }
+                address {{ switch.h2d_ipv6_et50.ip }}/{{ switch.h2d_ipv6_et50.prefixlen }};
+            }
+        }
+    }
+    et-0/0/51 {
+        apply-groups L3-9K-MTU;
+        unit 0 {
+            description "PHY|100g|rhost:{{ switch.rhostname_et51 }}|rport:{{ switch.rport_et51 }}";
+            family inet {
+                address {{ switch.h2d_ipv4_et51.ip }}/{{ switch.h2d_ipv4_et51.prefixlen }};
+            }
+            family iso;
+            family inet6 {
+                filter {
+                    input IPV6-IN;
+                }
+                address {{ switch.h2d_ipv6_et51.ip }}/{{ switch.h2d_ipv6_et51.prefixlen }};
+            }
+        }
+    }
+    lo0 {
+        unit 0 {
+            family inet {
+                filter {
+                    input IPV4-PROTECT-RE-IN;
+                }
+                address {{ switch.loopback.v4.ip }}/{{ switch.loopback.v4.prefixlen }};
+            }
+            family iso {
+{% set iso = switch.loopback.v4.ip | replace(".","") %}
+{% set len = iso | length %}
+                {% if len == 4 -%}
+            address 49.0023.{{ iso[0:4] + ".0000.0000.00" }};
+            }
+                {% elif len == 5 -%}
+            address 49.0023.{{ iso[0:4] + ".0000.000" + iso[4] + ".00" }};
+            }
+                {% elif len == 6 -%}
+            address 49.0023.{{ iso[0:4] + ".0000.00" + iso[4:6] + ".00" }};
+            }
+                {% elif len == 7 -%}
+            address 49.0023.{{ iso[0:4] + ".0000.0" + iso[4:7] + ".00" }};
+            }
+                {% elif len == 8 -%}
+            address 49.0023.{{ iso[0:4] + ".00" + iso[4:6] + ".00" + iso[6:8] + ".00" }};
+            }
+                {% elif len == 9 -%}
+            address 49.0023.{{ iso[0:4] + ".00" + iso[4:6] + ".0" + iso[6:9] + ".00" }};
+            }
+                {% elif len == 10 -%}
+            address 49.0023.{{ iso[0:4] + ".00" + iso[4:6] + "." + iso[6:10] + ".00" }};
+            }
+                {% elif len == 11 -%}
+            address 49.0023.{{ iso[0:4] + ".0" + iso[4:7] + "." + iso[7:11] + ".00" }};
+            }
+                {% elif len == 12 -%}
+            address 49.0023.{{ iso[0:4] + "." + iso[4:8] + "." + iso[8:12] + ".00" }};
+            }
+{% endif %}
+
+            family inet6 {
+                filter {
+                    input IPV6-PROTECT-RE-IN;
+                }
+                address {{ switch.loopback.v6.ip }}/{{ switch.loopback.v6.prefixlen }};
+            }
+        }
+    }
+}
+replace: forwarding-options {
+    dhcp-relay {
+        dhcpv6 {
+            relay-option;
+            vendor-specific-information host-name;
+            group ipv6-dhcp-servers {
+                active-server-group ipv6-dhcp-servers;
+{% for intf in range(48) %}
+                interface xe-0/0/{{ intf }}.0;
+{% endfor %}
+            }
+            relay-agent-interface-id {
+                prefix {
+                    host-name;
+                }
+            }
+            relay-agent-remote-id {
+                prefix {
+                    host-name;
+                }
+                include-irb-and-l2;
+                use-option-82;
+            }
+            server-group {
+                ipv6-dhcp-servers {
+                    {{ switch.shard_ip_helper_v6 }};
+                }
+            }
+            active-server-group ipv6-dhcp-servers;
+        }
+    }
+}
+replace: event-options {
+    generate-event {
+        mcast-60s time-interval 60;
+    }
+    generate-event {
+        checkVideoRedundancy time-of-day "09:00:00";
+    }
+    policy mcast {
+        events mcast-60s;
+        then {
+            event-script auto_mc_switch_twonsg.py {
+                arguments {
+                    nsga {{ nsg.a }};
+                    nsgb {{ nsg.b }};
+                    nsgc {{ nsg.c }};
+                    nsgd {{ nsg.d }};
+                }
+            }
+        }
+    }
+    policy mcastVideoRedundancy {
+        events checkVideoRedundancy;
+        then {
+            event-script checkVideoRedundancy.py;
+        }
+    }
+    policy poll_port_state_on_boot {
+        events system;
+        attributes-match {
+            system.message matches "Starting of initial processes complete";
+        }
+        then {
+            event-script pollportstate.py {
+                arguments {
+                    server http://{{ vcmts_evt_pub_ip_addr }}:{{ vcmts_evt_pub_port }};
+                    ifname "[x]e-0/0/*";
+                }
+            }
+        }
+    }
+    policy poll_port_state_activate {
+        events system;
+        attributes-match {
+            system.message matches "Activate port state polling process";
+        }
+        then {
+            event-script pollportstate.py {
+                arguments {
+                    server http://{{ vcmts_evt_pub_ip_addr }}:{{ vcmts_evt_pub_port }};
+                    ifname "[x]e-0/0/*";
+                }
+            }
+        }
+    }
+    policy chassisd {
+        events SYSTEM;
+        attributes-match {
+            SYSTEM.message matches .*virtual-chassis-control.*started.*;
+        }
+        then {
+            event-script bootup.py;
+        }
+    }
+    event-script {
+        optional;
+        file auto_mc_switch_twonsg.py {
+            python-script-user superuser;
+        }
+        file checkVideoRedundancy.py {
+            python-script-user superuser;
+        }
+        file pollportstate.py {
+            python-script-user superuser;
+        }
+        file bootup.py {
+            python-script-user superuser;
+        }
+    }
+}
+replace: policy-options {
+    prefix-list IPV4-LOOPBACKS {
+        apply-path "interfaces lo0 unit 0 family inet address <*>";
+    }
+    prefix-list IPV6-LOOPBACKS {
+        apply-path "interfaces lo0 unit 0 family inet6 address <*>";
+    }
+    prefix-list V6-MULTICAST-RE-FILTER {
+        {{ v6_multicast_re_filter }};
+    }
+    prefix-list BGP-RE-FILTER {
+        apply-path "protocols bgp group <*> neighbor <*>";
+    }
+    prefix-list ROUTING-INSTANCE-BGP-RE-FILTER {
+        apply-path "routing-instances <*> protocols bgp group <*> neighbor <*>";
+    }
+    prefix-list ICCP-PEER {
+        apply-path "protocols iccp peer <*>";
+    }
+    prefix-list BROADCAST-SOURCES-TO-BLOCK {
+        {{ block_this_nsg.b12 }};
+	    {{ block_this_nsg.b13 }};
+    }
+    policy-statement RPHY-VIDEO {
+        term 1 {
+            from {
+                route-filter {{ rphy_video }} orlonger;
+            }
+            then accept;
+        }
+        term 2 {
+            then reject;
+        }
+    }
+}
+replace: class-of-service {
+    classifiers {
+        dscp DSCPV4-CLASSIFIER {
+            forwarding-class MNGMT {
+                loss-priority low code-points af33;
+                loss-priority medium-high code-points af21;
+                loss-priority high code-points cs2;
+            }
+            forwarding-class BASIC-DATA {
+                loss-priority low code-points af11;
+                loss-priority medium-high code-points dscp42;
+                loss-priority high code-points be;
+            }
+            forwarding-class HSD {
+                loss-priority low code-points cs1;
+                loss-priority medium-high code-points cs5;
+                loss-priority high code-points dscp9;
+            }
+            forwarding-class SIP-BEARER {
+                loss-priority low code-points dscp44;
+                loss-priority medium-high code-points dscp2;
+            }
+            forwarding-class PRIORITY-DATA {
+                loss-priority low code-points af32;
+                loss-priority medium-high code-points af22;
+                loss-priority high code-points af23;
+            }
+            forwarding-class VOIP-CONTROL {
+                loss-priority low code-points af31;
+                loss-priority medium-high code-points dscp35;
+                loss-priority high code-points dscp37;
+            }
+            forwarding-class VOD {
+                loss-priority low code-points af41;
+                loss-priority medium-high code-points af43;
+                loss-priority high code-points af42;
+            }
+            forwarding-class PREMIUM-DATA {
+                loss-priority low code-points ef;
+                loss-priority high code-points cs6;
+                loss-priority medium-high code-points dscp45;
+            }
+        }
+        dscp DSCPV4-CLASSIFIER-UNUSED {
+            forwarding-class HSD {
+                loss-priority high code-points [ 000001 000011 000100 000101 000110 000111 001011 af12 001101 af13 001111 010001 010011 010101 010111 cs3 011001 011011 011101 011111 cs4 100001 100111 101001 101011 101111 110001 110010 110011 110100 110101 110110 110111 cs7 111001 111010 111011 111100 111101 111110 111111 ];
+            }
+        }
+        dscp-ipv6 DSCPV6-CLASSIFIER-UNUSED {
+            forwarding-class HSD {
+                loss-priority high code-points [ 000001 000011 000100 000101 000110 000111 001011 af12 001101 af13 001111 010001 010011 010101 010111 cs3 011001 011011 011101 011111 cs4 100001 100111 101001 101011 101111 110001 110010 110011 110100 110101 110110 110111 cs7 111001 111010 111011 111100 111101 111110 111111 ];
+            }
+        }
+        dscp-ipv6 DSCPV6-CLASSIFIER {
+            import DSCPV6-CLASSIFIER-UNUSED;
+            forwarding-class BASIC-DATA {
+                loss-priority low code-points af11;
+                loss-priority medium-high code-points dscp42;
+                loss-priority high code-points be;
+            }
+            forwarding-class HSD {
+                loss-priority low code-points cs1;
+                loss-priority medium-high code-points cs5;
+                loss-priority high code-points dscp9;
+            }
+            forwarding-class SIP-BEARER {
+                loss-priority low code-points dscp44;
+                loss-priority medium-high code-points dscp2;
+            }
+            forwarding-class PRIORITY-DATA {
+                loss-priority low code-points af32;
+                loss-priority medium-high code-points af22;
+                loss-priority high code-points af23;
+            }
+            forwarding-class MNGMT {
+                loss-priority low code-points af33;
+                loss-priority medium-high code-points af21;
+                loss-priority high code-points cs2;
+            }
+            forwarding-class VOIP-CONTROL {
+                loss-priority low code-points af31;
+                loss-priority medium-high code-points dscp35;
+                loss-priority high code-points dscp37;
+            }
+            forwarding-class VOD {
+                loss-priority low code-points af41;
+                loss-priority medium-high code-points af43;
+                loss-priority high code-points af42;
+            }
+            forwarding-class PREMIUM-DATA {
+                loss-priority low code-points ef;
+                loss-priority high code-points cs6;
+                loss-priority medium-high code-points dscp45;
+            }
+        }
+        exp EXP-CLASSIFIER {
+            forwarding-class BASIC-DATA {
+                loss-priority low code-points [ EXP-0 EXP-1 EXP-2 EXP-4 EXP-7 ];
+            }
+            forwarding-class PRIORITY-DATA {
+                loss-priority high code-points EXP-3;
+            }
+            forwarding-class PREMIUM-DATA {
+                loss-priority low code-points EXP-5;
+                loss-priority high code-points EXP-6;
+            }
+        }
+        ieee-802.1 DOT1P-CLASSIFIER {
+            forwarding-class BASIC-DATA {
+                loss-priority low code-points [ DOT1P-0 DOT1P-1 DOT1P-2 DOT1P-4 DOT1P-6 DOT1P-7 ];
+            }
+            forwarding-class PRIORITY-DATA {
+                loss-priority high code-points DOT1P-3;
+            }
+            forwarding-class PREMIUM-DATA {
+                loss-priority low code-points DOT1P-5;
+            }
+        }
+        ieee-802.1 DOT1P-UNI-CLASSIFIER {
+            forwarding-class BASIC-DATA {
+                loss-priority low code-points [ DOT1P-0 DOT1P-1 DOT1P-4 DOT1P-6 DOT1P-7 ];
+            }
+            forwarding-class PRIORITY-DATA {
+                loss-priority high code-points [ DOT1P-2 DOT1P-3 ];
+            }
+            forwarding-class PREMIUM-DATA {
+                loss-priority low code-points DOT1P-5;
+            }
+        }
+    }
+    code-point-aliases {
+        dscp {
+            dscp2 000010;
+            dscp9 001001;
+            dscp35 100011;
+            dscp37 100101;
+            dscp42 101010;
+            dscp44 101100;
+            dscp45 101101;
+        }
+        dscp-ipv6 {
+            dscp2 000010;
+            dscp9 001001;
+            dscp35 100011;
+            dscp37 100101;
+            dscp42 101010;
+            dscp44 101100;
+            dscp45 101101;
+        }
+        exp {
+            EXP-0 000;
+            EXP-1 001;
+            EXP-2 010;
+            EXP-3 011;
+            EXP-4 100;
+            EXP-5 101;
+            EXP-6 110;
+            EXP-7 111;
+        }
+        ieee-802.1 {
+            DOT1P-0 000;
+            DOT1P-1 001;
+            DOT1P-2 010;
+            DOT1P-3 011;
+            DOT1P-4 100;
+            DOT1P-5 101;
+            DOT1P-6 110;
+            DOT1P-7 111;
+        }
+        inet-precedence {
+            IPP-0 000;
+            IPP-1 001;
+            IPP-2 010;
+            IPP-3 011;
+            IPP-4 100;
+            IPP-5 101;
+            IPP-6 110;
+            IPP-7 111;
+        }
+    }
+    drop-profiles {
+        DROP-LOW {
+            interpolate {
+                fill-level [ 70 100 ];
+                drop-probability [ 0 100 ];
+            }
+        }
+        DROP-HIGH {
+            interpolate {
+                fill-level [ 40 70 ];
+                drop-probability [ 0 100 ];
+            }
+        }
+    }
+    forwarding-classes {
+        class MNGMT queue-num 3;
+        class BASIC-DATA queue-num 0;
+        class HSD queue-num 0;
+        class SIP-BEARER queue-num 0;
+        class PRIORITY-DATA queue-num 3;
+        class VOIP-CONTROL queue-num 3;
+        class VOD queue-num 4;
+        class PREMIUM-DATA queue-num 7;
+    }
+    rewrite-rules {
+        dscp DSCPV4-REWRITE {
+            forwarding-class MNGMT {
+                loss-priority low code-point af33;
+                loss-priority medium-high code-point af21;
+                loss-priority high code-point cs2;
+            }
+            forwarding-class BASIC-DATA {
+                loss-priority low code-point af11;
+                loss-priority high code-point be;
+                loss-priority medium-high code-point dscp42;
+            }
+            forwarding-class HSD {
+                loss-priority low code-point cs1;
+                loss-priority medium-high code-point cs5;
+                loss-priority high code-point dscp9;
+            }
+            forwarding-class SIP-BEARER {
+                loss-priority low code-point dscp44;
+                loss-priority medium-high code-point dscp2;
+            }
+            forwarding-class PRIORITY-DATA {
+                loss-priority low code-point af32;
+                loss-priority medium-high code-point af22;
+                loss-priority high code-point af23;
+            }
+            forwarding-class VOIP-CONTROL {
+                loss-priority low code-point af31;
+                loss-priority medium-high code-point dscp35;
+                loss-priority high code-point dscp37;
+            }
+            forwarding-class VOD {
+                loss-priority low code-point af41;
+                loss-priority medium-high code-point af43;
+                loss-priority high code-point af42;
+            }
+            forwarding-class PREMIUM-DATA {
+                loss-priority low code-point ef;
+                loss-priority high code-point cs6;
+                loss-priority medium-high code-point dscp45;
+            }
+        }
+        dscp-ipv6 DSCPV6-REWRITE {
+            forwarding-class MNGMT {
+                loss-priority low code-point af33;
+                loss-priority medium-high code-point af21;
+                loss-priority high code-point cs2;
+            }
+            forwarding-class BASIC-DATA {
+                loss-priority low code-point af11;
+                loss-priority high code-point be;
+                loss-priority medium-high code-point dscp42;
+            }
+            forwarding-class HSD {
+                loss-priority low code-point cs1;
+                loss-priority medium-high code-point cs5;
+                loss-priority high code-point dscp9;
+            }
+            forwarding-class SIP-BEARER {
+                loss-priority low code-point dscp44;
+                loss-priority medium-high code-point dscp2;
+            }
+            forwarding-class PRIORITY-DATA {
+                loss-priority low code-point af32;
+                loss-priority medium-high code-point af22;
+                loss-priority high code-point af23;
+            }
+            forwarding-class VOIP-CONTROL {
+                loss-priority low code-point af31;
+                loss-priority medium-high code-point dscp35;
+                loss-priority high code-point dscp37;
+            }
+            forwarding-class VOD {
+                loss-priority low code-point af41;
+                loss-priority medium-high code-point af43;
+                loss-priority high code-point af42;
+            }
+            forwarding-class PREMIUM-DATA {
+                loss-priority low code-point ef;
+                loss-priority high code-point cs6;
+                loss-priority medium-high code-point dscp45;
+            }
+        }
+        exp EXP-REWRITE {
+            forwarding-class BASIC-DATA {
+                loss-priority low code-point EXP-1;
+            }
+            forwarding-class PRIORITY-DATA {
+                loss-priority high code-point EXP-3;
+            }
+            forwarding-class PREMIUM-DATA {
+                loss-priority low code-point EXP-5;
+                loss-priority high code-point EXP-6;
+            }
+        }
+        ieee-802.1 DOT1P-REWRITE {
+            forwarding-class BASIC-DATA {
+                loss-priority low code-point DOT1P-1;
+            }
+            forwarding-class PRIORITY-DATA {
+                loss-priority high code-point DOT1P-3;
+            }
+            forwarding-class PREMIUM-DATA {
+                loss-priority low code-point DOT1P-5;
+            }
+        }
+    }
+    scheduler-maps {
+        QOS-MAP {
+            forwarding-class BASIC-DATA scheduler TRAFFIC-CLASS-1-SCHEDULER;
+            forwarding-class PRIORITY-DATA scheduler TRAFFIC-CLASS-2-SCHEDULER;
+            forwarding-class VOD scheduler TRAFFIC-CLASS-3-SCHEDULER;
+            forwarding-class PREMIUM-DATA scheduler TRAFFIC-CLASS-4-SCHEDULER;
+        }
+    }
+    schedulers {
+        TRAFFIC-CLASS-1-SCHEDULER {
+            transmit-rate percent 20;
+            priority low;
+            drop-profile-map loss-priority low protocol any drop-profile DROP-LOW;
+            drop-profile-map loss-priority high protocol any drop-profile DROP-HIGH;
+            drop-profile-map loss-priority medium-high protocol any drop-profile DROP-LOW;
+        }
+        TRAFFIC-CLASS-2-SCHEDULER {
+            transmit-rate percent 30;
+            priority low;
+            drop-profile-map loss-priority low protocol any drop-profile DROP-LOW;
+            drop-profile-map loss-priority medium-high protocol any drop-profile DROP-HIGH;
+            drop-profile-map loss-priority high protocol any drop-profile DROP-HIGH;
+        }
+        TRAFFIC-CLASS-3-SCHEDULER {
+            transmit-rate percent 45;
+            priority low;
+            drop-profile-map loss-priority high protocol any drop-profile DROP-HIGH;
+        }
+        TRAFFIC-CLASS-4-SCHEDULER {
+            transmit-rate percent 5;
+            priority strict-high;
+        }
+    }
+}
+replace: firewall {
+    family inet {
+        filter IPV4-PROTECT-RE-IN {
+            term tcp-established {
+                from {
+                    protocol tcp;
+                    tcp-established;
+                }
+                then {
+                    count tcp-established;
+                    accept;
+                }
+            }
+            term v4-ssh-in {
+                from {
+                    source-prefix-list {
+                        COMCAST-INFRASTRUCTURE;
+                    }
+                    destination-port ssh;
+                }
+                then {
+                    policer LIMIT-5m;
+                    count permit-IPV4;
+                    accept;
+                }
+            }
+            term ntp {
+                from {
+                    source-prefix-list {
+                        NTP-RE-FILTER;
+                        IPV4-LOOPBACKS;
+                    }
+                    protocol udp;
+                }
+                then {
+                    policer LIMIT-500k;
+                    count permit-ipv4-ntp;
+                    accept;
+                }
+            }
+            term next-icmp-frag {
+                from {
+                    is-fragment;
+                    protocol icmp;
+                }
+                then {
+                    count icmp-fragment-discards;
+                    discard;
+                }
+            }
+            term icmp {
+                from {
+                    source-prefix-list {
+                        COMCAST-INFRASTRUCTURE;
+                    }
+                    protocol icmp;
+                }
+                then {
+                    policer LIMIT-2m;
+                    count permit-ipv4-icmp;
+                    accept;
+                }
+            }
+            term traceroute {
+                from {
+                    protocol udp;
+                    destination-port 33434-33689;
+                }
+                then {
+                    policer LIMIT-500k;
+                    count police-ipv4-traceroute;
+                    accept;
+                }
+            }
+            term v4-snmp-in {
+                from {
+                    source-prefix-list {
+                        COMCAST-INFRASTRUCTURE;
+                    }
+                    protocol udp;
+                    destination-port 161;
+                }
+                then {
+                    count permit-ipv4-snmp;
+                    accept;
+                }
+            }
+            term bgp {
+                from {
+                    source-prefix-list {
+                        BGP-RE-FILTER;
+                    }
+                }
+                then accept;
+            }
+            term from-dhcp-server {
+                from {
+                    source-prefix-list {
+                        COMCAST-INFRASTRUCTURE;
+                    }
+                    source-port bootps;
+                    destination-port bootps;
+                }
+                then {
+                    policer LIMIT-500k;
+                    count police-ipv4-dhcp-server;
+                    accept;
+                }
+            }
+            term vrrp {
+                from {
+                    source-prefix-list {
+                        COMCAST-INFRASTRUCTURE;
+                    }
+                    protocol vrrp;
+                }
+                then {
+                    count permit-ipv4-vrrp;
+                    accept;
+                }
+            }
+            term bfd {
+                from {
+                    source-prefix-list {
+                        COMCAST-INFRASTRUCTURE;
+                    }
+                    protocol udp;
+                    destination-port [ 3784 4784 ];
+                }
+                then {
+                    count bfd;
+                    accept;
+                }
+            }
+            term v4-pod-loopbacks {
+                from {
+                    source-prefix-list {
+                        ICCP-PEER;
+                    }
+                }
+                then accept;
+            }
+            term multicast {
+                from {
+                    source-prefix-list {
+                        COMCAST-INFRASTRUCTURE;
+                    }
+                    protocol pim;
+                }
+                then accept;
+            }
+            term radius {
+                from {
+                    source-prefix-list {
+                        RADIUS;
+                    }
+                    protocol udp;
+                    source-port [ radius tacacs 1645 ];
+                }
+                then {
+                    count radius;
+                    accept;
+                }
+            }
+            term dns-in {
+                from {
+                    source-prefix-list {
+                        COMCAST-DNS;
+                    }
+                    protocol udp;
+                }
+                then accept;
+            }
+            term deny-all {
+                then {
+                    count discards;
+                    discard;
+                }
+            }
+        }
+    }
+    family inet6 {
+        filter IPV6-PROTECT-RE-IN {
+            term v6-tcp-established {
+                from {
+                    next-header tcp;
+                    tcp-established;
+                }
+                then accept;
+            }
+            term v6-nd-local {
+                from {
+                    next-header icmp6;
+                    hop-limit 255;
+                }
+                then accept;
+            }
+            term v6-icmp {
+                from {
+                    next-header icmp6;
+                }
+                then {
+                    policer LIMIT-500k;
+                    count police-ipv6-icmp;
+                    accept;
+                }
+            }
+            term v6-traceroute {
+                from {
+                    next-header udp;
+                    destination-port 33434-33689;
+                }
+                then {
+                    policer LIMIT-500k;
+                    count police-ipv6-traceroute;
+                    accept;
+                }
+            }
+            term v6-bgp {
+                from {
+                    source-prefix-list {
+                        BGP-RE-FILTER;
+                    }
+                    next-header tcp;
+                    destination-port bgp;
+                }
+                then {
+                    policer LIMIT-5m;
+                    count permit-ipv6-bgp;
+                    accept;
+                }
+            }
+            term v6-bfd {
+                from {
+                    source-prefix-list {
+                        IPV6-COMCAST-INFRASTRUCTURE;
+                    }
+                    next-header udp;
+                    destination-port [ 3784 4784 6784 ];
+                }
+                then accept;
+            }
+            term multicast {
+                from {
+                    destination-prefix-list {
+                        V6-MULTICAST-RE-FILTER;
+                    }
+                    next-header [ igmp pim ];
+                }
+                then {
+                    policer LIMIT-5m;
+                    count permit-ipv6-multicast;
+                    accept;
+                }
+            }
+            term v6-ssh-telnet-in {
+                from {
+                    source-prefix-list {
+                        IPV6-COMCAST-INFRASTRUCTURE;
+                    }
+                    next-header tcp;
+                    destination-port ssh;
+                }
+                then {
+                    policer LIMIT-5m;
+                    count permit-ipv6-telnet;
+                    accept;
+                }
+            }
+            term v6-vrrp {
+                from {
+                    source-address {
+                        fe80::/64;
+                    }
+                    next-header vrrp;
+                }
+                then {
+                    count permit-ipv6-vrrp;
+                    accept;
+                }
+            }
+            term ptp {
+                from {
+                    source-prefix-list {
+                        IPV6-COMCAST-INFRASTRUCTURE;
+                    }
+                    next-header udp;
+                    destination-port [ 319 320 ];
+                }
+                then accept;
+            }
+            term dhcp {
+                from {
+                    next-header udp;
+                    destination-port 546-547;
+                }
+                then accept;
+            }
+            term deny-all {
+                then {
+                    count discards;
+                    discard;
+                }
+            }
+        }
+        filter IPV6-IN {
+            term BROADCAST-VIDEO-SELECTOR {
+                from {
+                    source-prefix-list {
+                        BROADCAST-SOURCES-TO-BLOCK;
+                    }
+                    destination-prefix-list {
+                        BROADCAST-GROUPS;
+                    }
+                }
+                then {
+                    discard;
+                }
+            }
+            term ALLOW-ALL {
+                then accept;
+            }
+        }
+    }
+    policer LIMIT-500k {
+        if-exceeding {
+            bandwidth-limit 500k;
+            burst-size-limit 50k;
+        }
+        then discard;
+    }
+    policer LIMIT-2m {
+        if-exceeding {
+            bandwidth-limit 2m;
+            burst-size-limit 500k;
+        }
+        then discard;
+    }
+    policer LIMIT-5m {
+        if-exceeding {
+            bandwidth-limit 5m;
+            burst-size-limit 1m;
+        }
+        then discard;
+    }
+}
+replace: routing-options {
+    multicast {
+        flow-map RPHY-VIDEO {
+            policy RPHY-VIDEO;
+            forwarding-cache {
+                timeout never;
+            }
+        }
+    }
+}
+protocols {
+    replace: router-advertisement {
+{%      for intf in range(48) %}
+        interface xe-0/0/{{ intf }}.0;
+{%      endfor %}
+    }
+    replace: ptp {
+        clock-mode boundary;
+        profile-type g.8275.2.enh;
+        inactive: e2e-transparent;
+        unicast-negotiation;
+        slave {
+            interface et-0/0/50.0 {
+                unicast-mode {
+                    transport ipv6;
+                    clock-source {{ switch.leaf_a_ptp_src }} local-ip-address  {{ switch.h2d_ipv6_et50.ip }};
+                }
+            }
+            interface et-0/0/51.0 {
+                unicast-mode {
+                    transport ipv6;
+                    clock-source {{ switch.leaf_b_ptp_src }} local-ip-address  {{ switch.h2d_ipv6_et51.ip }};
+                }
+            }
+        }
+        master {
+            interface lo0.0 {
+                unicast-mode {
+                    transport ipv6;
+{% for address in switch.clock_clients %}
+                    clock-client {{ address }} local-ip-address {{ switch.loopback.v6.ip }};
+{% endfor %}
+                }
+            }
+        }
+    }
+    replace: clock-synchronization {
+        traceoptions {
+            file ptp size 10m files 5;
+            flag error;
+            flag all;
+        }
+    }
+    replace: isis {
+        level 1 disable;
+        level 2 wide-metrics-only;
+{%      for intf in range(48) %}
+        interface xe-0/0/{{ intf }}.0 {
+            passive;
+        }
+{%      endfor %}
+        interface et-0/0/50.0 {
+            apply-groups L2-ISIS-OPTIONS;
+            level 2 metric 10;
+        }
+        interface et-0/0/51.0 {
+            apply-groups L2-ISIS-OPTIONS;
+            level 2 metric 10;
+        }
+        interface lo0.0 {
+            passive;
+        }
+    }
+    mld {
+        interface et-0/0/50.0 {
+            version 2;
+        }
+        interface et-0/0/51.0 {
+            version 2;
+        }
+{%      for intf in range(48) %}
+        interface xe-0/0/{{ intf }}.0 {
+            version 2;
+        }
+{%      endfor %}
+    }
+    replace: pim {
+        interface et-0/0/50.0 {
+            apply-groups PIM-OPTIONS;
+        }
+        interface et-0/0/51.0 {
+            apply-groups PIM-OPTIONS;
+        }
+{%      for intf in range(48) %}
+        interface xe-0/0/{{ intf }}.0 {
+            family inet;
+            family inet6;
+            mode sparse;
+            hello-interval 3;
+        }
+{%      endfor %}
+    }
+}

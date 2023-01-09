@@ -1,0 +1,9 @@
+---
+vcmts_evt_pub_port: "8080"
+rphy_video: ff3b:feed::/16
+broadcast_groups:
+  - ff3b:feed::/32
+v6_multicast_re_filter: ff00::/8
+
+pkg_dir: "../files"
+netconf_port: 22
