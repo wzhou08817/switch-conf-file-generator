@@ -1,5 +1,5 @@
 role_name : 'backhaul-switch-config'
 role_host : 'localhost'
 version : '1.0'
-output_dir : 'output'
+output_dir : '.'
 output_name : 'backhaul-switch'
