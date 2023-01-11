@@ -9,9 +9,6 @@ inputs:
   - name: switch-conf-file-generator
 
 run:
-  path cd ./switch-conf-file-generator
-
-run:
   path: bash
   args:
   - -exc
