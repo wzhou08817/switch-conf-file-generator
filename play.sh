@@ -1,3 +1,3 @@
 #!/usr/bin/bash
 
-/usr/bin/ansible-playbook main.yml -e "@configs/$1.yml"
+ansible-playbook /switch-conf-file-generator/main.yml -e "@backhaul_switch_config.yml"

@@ -3,3 +3,14 @@
   gather_facts: false
   roles:
   - "{{ role_name }}"
+
+- name: Display content of the generated file
+  hosts: localhost
+  tasks:
+    - name: Display conf file contents
+      command: cat "{{ output_dir }}/{{ output_name }}.conf" 
+      register: command_output
+
+    - name: Print to console
+      debug:
+        msg: "{{command_output.stdout}}"
