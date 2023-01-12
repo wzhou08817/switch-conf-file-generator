@@ -11,7 +11,7 @@ cp resource-generator/backhaul-switch.conf resource-gist/backhaul-switch.conf
 
 cd resource-gist
 date >> backhaul-switch.conf
-git diff backhaul-switch.conf
+git status
 
 git config --global user.email "wzhou.08817@gmail.com"
 git config --global user.name "wzhou08817"
