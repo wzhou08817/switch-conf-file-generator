@@ -1,5 +1,5 @@
 - hosts: "{{ role_host }}"
-  serial: 0
+  serial: 1
   gather_facts: false
   roles:
   - "{{ role_name }}"
