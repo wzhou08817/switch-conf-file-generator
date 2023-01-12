@@ -3,12 +3,12 @@
 set -e # fail fast
 set -x # print commands
 
-git clone resource-generator
+#git clone resource-generator
 cd resource-generator
 ansible-playbook main.yml -e "@configs/backhaul_switch_config.yml"
 cd ..
 
-git clone resource-gist updated-gist
+#git clone resource-gist updated-gist
 cp resource-generator/backhaul-switch.conf updated-gist/backhaul-switch.conf
 
 cd updated-gist

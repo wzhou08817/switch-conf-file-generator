@@ -15,7 +15,6 @@ run:
   args:
   - -exc
   - |
-    ls -alR
-    pwd
+    ls -lR
     cd ./switch-conf-file-generator
     ansible-playbook main.yml -e "@configs/backhaul_switch_config.yml"
