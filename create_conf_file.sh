@@ -3,10 +3,6 @@
 set -e # fail fast
 set -x # print commands
 
-apt update
-apt upgrade -y
-apt install git -y
-
 git clone resource-generator
 cd resource-generator
 ansible-playbook main.yml -e "@configs/backhaul_switch_config.yml"
