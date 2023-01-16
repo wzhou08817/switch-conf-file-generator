@@ -13,7 +13,6 @@ cp resource-generator/backhaul-switch.conf updated-output/backhaul-switch.conf
 
 cd updated-output
 git pull
-
 date >> backhaul-switch.conf
 
 git config --global user.email "wzhou.08817@gmail.com"
